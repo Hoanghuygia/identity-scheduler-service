@@ -1,0 +1,12 @@
+target/
+.idea/
+*.iml
+*.log
+.env
+
+# Eclipse / VS Code
+.classpath
+.project
+.settings/
+.factorypath
+
