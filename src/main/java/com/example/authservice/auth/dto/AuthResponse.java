@@ -1,22 +1,37 @@
 package com.example.authservice.auth.dto;
 
-import java.util.List;
+import com.example.authservice.user.entity.UserStatus;
 
 public record AuthResponse(
-    String subject,
+    String userId,
+    String email,
+    String fullName,
+    UserStatus status,
     String accessToken,
     String refreshToken,
-    List<String> roles,
-    String note
+    Long expiresIn
 ) {
-
-    public static AuthResponse stub(String note) {
+    public static AuthResponse stub(String message) {
         return new AuthResponse(
-            "stub-user@example.com",
-            "stub-access-token",
-            "stub-refresh-token",
-            List.of("ROLE_CUSTOMER"),
-            note
+            "stub-user-id",
+            "stub@example.com", 
+            "Stub User",
+            UserStatus.PENDING,
+            null,
+            null,
+            null
+        );
+    }
+
+    public static AuthResponse stub(String message, UserStatus status) {
+        return new AuthResponse(
+            "stub-user-id",
+            "stub@example.com",
+            "Stub User", 
+            status,
+            null,
+            null,
+            null
         );
     }
 }
