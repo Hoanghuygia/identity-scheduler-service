@@ -1,6 +1,7 @@
 package com.example.authservice.security;
 
 import com.example.authservice.user.entity.User;
+import com.example.authservice.user.entity.UserStatus;
 import com.example.authservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,7 +25,7 @@ public class AppUserDetailsService implements UserDetailsService {
             .email(user.getEmail())
             .password(user.getPasswordHash())
             .roles(user.getUserRoles().stream().map(ur -> ur.getRole().getCode()).collect(java.util.stream.Collectors.toSet()))
-            .enabled("ACTIVE".equalsIgnoreCase(user.getStatus()))
+            .enabled(UserStatus.ACTIVE.equals(user.getStatus()))
             .build();
     }
 }
