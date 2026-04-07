@@ -8,22 +8,86 @@ import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.dto.ResetPasswordRequest;
+import com.example.authservice.auth.event.UserRegisteredEvent;
+import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.mail.service.EmailService;
+import com.example.authservice.role.service.RoleService;
+import com.example.authservice.user.entity.User;
+import com.example.authservice.user.entity.UserStatus;
+import com.example.authservice.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private final UserService userService;
+    private final RoleService roleService;
+    private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
     private final AuthAuditService authAuditService;
     private final EmailService emailService;
 
     @Override
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // TODO: Implement registration flow, user creation, role assignment, and verification token generation.
-        authAuditService.record(null, AuditEventType.REGISTER_SUCCESS, "Stub register endpoint called", null, null);
-        return AuthResponse.stub("Register stub response");
+        log.info("registration_started email={}", request.email());
+
+        // Check if email already exists
+        if (userService.findByEmail(request.email()).isPresent()) {
+            log.warn("registration_failed_duplicate_email email={}", request.email());
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS, HttpStatus.CONFLICT, "Email already exists");
+        }
+
+        // Create new user in PENDING state
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail(request.email());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setFullName(request.fullName());
+        user.setPhoneNumber(request.phoneNumber());
+        user.setStatus(UserStatus.PENDING);
+        user.setEmailVerified(false);
+
+        User savedUser = userService.createUser(user);
+        
+        // Assign CUSTOMER role
+        roleService.assignCustomerRole(savedUser.getId());
+
+        // Publish event for async email verification
+        UserRegisteredEvent event = new UserRegisteredEvent(savedUser.getId(), savedUser.getEmail());
+        eventPublisher.publishEvent(event);
+
+        // Record audit log
+        authAuditService.record(
+            savedUser.getId(), 
+            AuditEventType.REGISTER_SUCCESS, 
+            "User registered successfully", 
+            null, 
+            null
+        );
+
+        log.info("registration_completed user_id={} email={}", savedUser.getId(), savedUser.getEmail());
+
+        return new AuthResponse(
+            savedUser.getId().toString(),
+            savedUser.getEmail(),
+            savedUser.getFullName(),
+            savedUser.getStatus(),
+            null,  // No access token until email verified
+            null,  // No refresh token until email verified
+            null   // No expiration until email verified
+        );
     }
 
     @Override

@@ -6,6 +6,7 @@ public enum ErrorCode {
     UNAUTHORIZED,
     FORBIDDEN,
     NOT_FOUND,
+    EMAIL_ALREADY_EXISTS,
     INTERNAL_ERROR
 }
 

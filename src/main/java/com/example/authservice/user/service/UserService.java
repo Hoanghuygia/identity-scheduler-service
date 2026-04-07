@@ -10,5 +10,7 @@ public interface UserService {
     Optional<User> findByEmail(String email);
 
     Optional<User> findById(UUID userId);
+
+    User createUser(User user);
 }
 
