@@ -8,6 +8,7 @@ import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
+import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.entity.UserStatus;
 import com.example.authservice.user.service.UserService;
@@ -46,6 +47,9 @@ class AuthServiceImplTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private VerificationTokenService verificationTokenService;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -57,7 +61,8 @@ class AuthServiceImplTest {
             passwordEncoder,
             eventPublisher,
             authAuditService,
-            emailService
+            emailService,
+            verificationTokenService
         );
     }
 

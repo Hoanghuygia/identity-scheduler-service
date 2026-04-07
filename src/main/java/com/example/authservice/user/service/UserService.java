@@ -11,6 +11,10 @@ public interface UserService {
 
     Optional<User> findById(UUID userId);
 
+    User getById(UUID userId);  // Returns User or null
+
     User createUser(User user);
+
+    void activateUser(UUID userId);
 }
 

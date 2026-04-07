@@ -3,6 +3,11 @@ spring:
     name: auth-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auth_service}
     username: ${DB_USERNAME:auth_user}
@@ -59,7 +64,7 @@ info:
   app:
     name: ${spring.application.name}
     description: Lightweight auth service starter template
-    version: @project.version@
+    version: "@project.version@"
 
 springdoc:
   api-docs:

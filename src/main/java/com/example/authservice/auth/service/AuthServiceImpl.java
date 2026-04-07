@@ -13,6 +13,7 @@ import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
+import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.entity.UserStatus;
 import com.example.authservice.user.service.UserService;
@@ -37,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final ApplicationEventPublisher eventPublisher;
     private final AuthAuditService authAuditService;
     private final EmailService emailService;
+    private final VerificationTokenService verificationTokenService;
 
     @Override
     @Transactional
@@ -117,9 +119,56 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public void verifyEmail(String token) {
-        // TODO: Validate verification token and mark email as verified.
-        authAuditService.record(null, AuditEventType.EMAIL_VERIFIED, "Stub verify email called", null, null);
+        log.info("email_verification_started token={}", token);
+
+        // Validate token
+        if (!verificationTokenService.validateEmailVerificationToken(token)) {
+            log.warn("email_verification_failed_invalid_token token={}", token);
+            throw new AppException(
+                ErrorCode.INVALID_TOKEN, 
+                HttpStatus.BAD_REQUEST, 
+                "Invalid or expired verification token"
+            );
+        }
+
+        // Get user from token
+        UUID userId = verificationTokenService.getUserIdFromToken(token);
+        User user = userService.getById(userId);
+        
+        if (user == null) {
+            log.warn("email_verification_failed_user_not_found user_id={}", userId);
+            throw new AppException(
+                ErrorCode.USER_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "User not found"
+            );
+        }
+
+        // Check if already verified
+        if (user.isEmailVerified() || user.getStatus() == UserStatus.ACTIVE) {
+            log.warn("email_verification_failed_already_verified user_id={}", userId);
+            throw new AppException(
+                ErrorCode.EMAIL_ALREADY_VERIFIED,
+                HttpStatus.CONFLICT,
+                "Email already verified"
+            );
+        }
+
+        // Activate user
+        userService.activateUser(userId);
+
+        // Record audit log
+        authAuditService.record(
+            userId,
+            AuditEventType.EMAIL_VERIFIED,
+            "Email verified successfully",
+            null,
+            null
+        );
+
+        log.info("email_verification_completed user_id={}", userId);
     }
 
     @Override
