@@ -45,4 +45,67 @@ class ClientInfoServiceTest {
             assertThat(result).isEqualTo("203.0.113.1");
         }
     }
+
+    @Test
+    void getClientIpAddress_withXRealIp_returnsRealIp() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Real-IP", "203.0.113.2");
+        
+        when(requestAttributes.getRequest()).thenReturn(request);
+        
+        try (MockedStatic<RequestContextHolder> mockedHolder = mockStatic(RequestContextHolder.class)) {
+            mockedHolder.when(RequestContextHolder::currentRequestAttributes).thenReturn(requestAttributes);
+            
+            String result = clientInfoService.getClientIpAddress();
+            
+            assertThat(result).isEqualTo("203.0.113.2");
+        }
+    }
+
+    @Test
+    void getClientIpAddress_noRequestContext_returnsUnknown() {
+        try (MockedStatic<RequestContextHolder> mockedHolder = mockStatic(RequestContextHolder.class)) {
+            mockedHolder.when(RequestContextHolder::currentRequestAttributes)
+                .thenThrow(new IllegalStateException("No request context"));
+            
+            String result = clientInfoService.getClientIpAddress();
+            
+            assertThat(result).isEqualTo("UNKNOWN");
+        }
+    }
+
+    @Test
+    void getUserAgent_withValidHeader_returnsUserAgent() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        
+        when(requestAttributes.getRequest()).thenReturn(request);
+        
+        try (MockedStatic<RequestContextHolder> mockedHolder = mockStatic(RequestContextHolder.class)) {
+            mockedHolder.when(RequestContextHolder::currentRequestAttributes).thenReturn(requestAttributes);
+            
+            String result = clientInfoService.getUserAgent();
+            
+            assertThat(result).isEqualTo("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        }
+    }
+
+    @Test
+    void parseUserAgent_withChromeUserAgent_returnsParsedInfo() {
+        String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+        
+        UserAgentInfo result = clientInfoService.parseUserAgent(userAgent);
+        
+        assertThat(result.browserName()).isEqualTo("Chrome");
+        assertThat(result.browserVersion()).isEqualTo("91");
+        assertThat(result.operatingSystem()).isEqualTo("Windows 10");
+        assertThat(result.deviceType()).isEqualTo("Desktop");
+    }
+
+    @Test
+    void parseUserAgent_withEmptyUserAgent_returnsUnknown() {
+        UserAgentInfo result = clientInfoService.parseUserAgent("");
+        
+        assertThat(result).isEqualTo(UserAgentInfo.unknown());
+    }
 }
