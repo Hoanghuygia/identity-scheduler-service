@@ -6,7 +6,33 @@ spring:
     password:
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: create-drop
   flyway:
     enabled: false
+  mail:
+    host: localhost
+    port: 1025
+    username: 
+    password: 
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+            required: false
+
+app:
+  jwt:
+    issuer: test-auth-service
+    access-token-expiry-seconds: 900
+    refresh-token-expiry-seconds: 1209600
+    public-key: test-public-key
+    private-key: test-private-key
+  frontend:
+    base-url: http://localhost:3000
+
+# Environment variables that the SMTP service expects
+SMTP_USERNAME: test@example.com
+FRONTEND_BASE_URL: http://localhost:3000
 

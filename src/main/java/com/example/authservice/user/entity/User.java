@@ -6,6 +6,8 @@ import com.example.authservice.token.entity.PasswordResetToken;
 import com.example.authservice.token.entity.RefreshToken;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -41,8 +43,9 @@ public class User {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private UserStatus status = UserStatus.PENDING;
 
     @Column(name = "is_email_verified", nullable = false)
     private boolean emailVerified;

@@ -5,6 +5,15 @@ spring:
     password: ${DB_PASSWORD:auth_password}
   jpa:
     show-sql: false
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+      exclude: static/**,public/**
+    livereload:
+      enabled: true
+      port: 35729
+    add-properties: false
 
 logging:
   level:
