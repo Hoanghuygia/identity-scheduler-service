@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -46,8 +47,30 @@ public class AuthServiceImpl implements AuthService {
         log.info("registration_started email={}", request.email());
 
         // Check if email already exists
-        if (userService.findByEmail(request.email()).isPresent()) {
-            log.warn("registration_failed_duplicate_email email={}", request.email());
+        Optional<User> existingUserOptional = userService.findByEmail(request.email());
+        if (existingUserOptional.isPresent()) {
+            User existingUser = existingUserOptional.get();
+            UserStatus existingStatus = existingUser.getStatus();
+
+            if (existingStatus == UserStatus.SUSPENDED || existingStatus == UserStatus.LOCKED) {
+                log.warn("registration_failed_restricted_account email={} status={}", request.email(), existingStatus);
+                throw new AppException(
+                    ErrorCode.FORBIDDEN,
+                    HttpStatus.FORBIDDEN,
+                    "This account is " + existingStatus + ". Please contact admin at admin@cty.com"
+                );
+            }
+
+            if (existingStatus == UserStatus.PENDING) {
+                log.warn("registration_failed_restricted_account email={} status={}", request.email(), existingStatus);
+                throw new AppException(
+                    ErrorCode.FORBIDDEN,
+                    HttpStatus.FORBIDDEN,
+                    "This account is " + existingStatus + ". Please activate the account"
+                );
+            }
+
+            log.warn("registration_failed_duplicate_email email={} status={}", request.email(), existingStatus);
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS, HttpStatus.CONFLICT, "Email already exists");
         }
 
@@ -74,9 +97,7 @@ public class AuthServiceImpl implements AuthService {
         authAuditService.record(
             savedUser.getId(), 
             AuditEventType.REGISTER_SUCCESS, 
-            "User registered successfully", 
-            null, 
-            null
+            "User registered successfully"
         );
 
         log.info("registration_completed user_id={} email={}", savedUser.getId(), savedUser.getEmail());
@@ -95,7 +116,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         // TODO: Implement authentication and issue access + refresh tokens.
-        authAuditService.record(null, AuditEventType.LOGIN_SUCCESS, "Stub login endpoint called", null, null);
+        authAuditService.record(null, AuditEventType.LOGIN_SUCCESS, "Stub login endpoint called");
         return AuthResponse.stub("Login stub response");
     }
 
@@ -109,13 +130,13 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(ForgotPasswordRequest request) {
         // TODO: Generate password reset token and send email.
         emailService.sendPasswordResetEmail(request.email(), "stub-token");
-        authAuditService.record(null, AuditEventType.PASSWORD_RESET_REQUESTED, "Stub forgot password called", null, null);
+        authAuditService.record(null, AuditEventType.PASSWORD_RESET_REQUESTED, "Stub forgot password called");
     }
 
     @Override
     public void resetPassword(ResetPasswordRequest request) {
         // TODO: Validate reset token and update password hash.
-        authAuditService.record(null, AuditEventType.PASSWORD_RESET_COMPLETED, "Stub reset password called", null, null);
+        authAuditService.record(null, AuditEventType.PASSWORD_RESET_COMPLETED, "Stub reset password called");
     }
 
     @Override
@@ -163,10 +184,8 @@ public class AuthServiceImpl implements AuthService {
         authAuditService.record(
             userId,
             AuditEventType.EMAIL_VERIFIED,
-            "Email verified successfully",
-            null,
-            null
-        );
+            "Email verified successfully"
+        );  
 
         log.info("email_verification_completed user_id={}", userId);
     }
@@ -177,4 +196,3 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.stub("Current user stub response");
     }
 }
-

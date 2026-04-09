@@ -119,7 +119,7 @@ class AuthServiceImplTest {
         verify(roleService).assignCustomerRole(userId);
 
         // Verify audit logging
-        verify(authAuditService).record(eq(userId), any(), eq("User registered successfully"), any(), any());
+        verify(authAuditService).record(eq(userId), any(), eq("User registered successfully"));
     }
 
     @Test
@@ -141,6 +141,50 @@ class AuthServiceImplTest {
         });
 
         assertEquals("Email already exists", exception.getMessage());
+        verify(userService, never()).createUser(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenEmailExistsForSuspendedUser() {
+        // Given
+        RegisterRequest request = new RegisterRequest(
+            "suspended@example.com",
+            "StrongPassword123!",
+            "John Doe",
+            "+1234567890"
+        );
+
+        User existingUser = new User();
+        existingUser.setStatus(UserStatus.SUSPENDED);
+        when(userService.findByEmail(request.email())).thenReturn(Optional.of(existingUser));
+
+        // When & Then
+        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+
+        assertEquals("This account is SUSPENDED. Please contact admin at admin@cty.com", exception.getMessage());
+        verify(userService, never()).createUser(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenEmailExistsForLockedUser() {
+        // Given
+        RegisterRequest request = new RegisterRequest(
+            "locked@example.com",
+            "StrongPassword123!",
+            "John Doe",
+            "+1234567890"
+        );
+
+        User existingUser = new User();
+        existingUser.setStatus(UserStatus.LOCKED);
+        when(userService.findByEmail(request.email())).thenReturn(Optional.of(existingUser));
+
+        // When & Then
+        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+
+        assertEquals("This account is LOCKED. Please contact admin at admin@cty.com", exception.getMessage());
         verify(userService, never()).createUser(any());
         verify(eventPublisher, never()).publishEvent(any());
     }

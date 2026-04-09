@@ -43,6 +43,18 @@ public class AuthAuditLog {
     @Column(name = "user_agent")
     private String userAgent;
 
+    @Column(name = "browser_name")
+    private String browserName;
+
+    @Column(name = "browser_version") 
+    private String browserVersion;
+
+    @Column(name = "operating_system")
+    private String operatingSystem;
+
+    @Column(name = "device_type")
+    private String deviceType;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -11,7 +11,6 @@ import com.example.authservice.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Stub response", authService.register(request)));
+        return ResponseEntity.ok(ApiResponse.success("Register Successfully", authService.register(request)));
     }
 
     @PostMapping("/login")
@@ -62,17 +61,6 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<AuthResponse>> me() {
         return ResponseEntity.ok(ApiResponse.success("Stub response", authService.me()));
-    }
-
-    @GetMapping("/health-test")
-    public ResponseEntity<ApiResponse<String>> healthTest() {
-        return ResponseEntity.ok(ApiResponse.success("Protected endpoint is reachable", "ok"));
-    }
-
-    @GetMapping("/admin-test")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<String>> adminTest() {
-        return ResponseEntity.ok(ApiResponse.success("Role-protected endpoint is reachable", "ok"));
     }
 }
 

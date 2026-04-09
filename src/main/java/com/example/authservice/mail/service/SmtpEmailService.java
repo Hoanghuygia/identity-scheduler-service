@@ -20,15 +20,18 @@ public class SmtpEmailService implements EmailService {
     private final JavaMailSender mailSender;
     private final EmailTemplateBuilder templateBuilder;
 
-    @Value("${SMTP_USERNAME}")
+    @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Value("${FRONTEND_BASE_URL}")
+    @Value("${app.frontend.base-url}")
     private String frontendBaseUrl;
+
+    @Value("${app.backend.base-url:http://localhost:8080}")
+    private String backendBaseUrl;
 
     @Override
     public void sendVerificationEmail(String email, String token) {
-        String verificationUrl = String.format("%s/verify-email?token=%s", frontendBaseUrl, token);
+        String verificationUrl = String.format("%s/api/v1/auth-test/verify-email-test?token=%s", backendBaseUrl, token);
         
         EmailDto emailDto = new EmailDto(
             email,

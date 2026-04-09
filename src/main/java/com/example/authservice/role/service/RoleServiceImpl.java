@@ -1,5 +1,7 @@
 package com.example.authservice.role.service;
 
+import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.role.entity.Role;
 import com.example.authservice.role.entity.RoleName;
 import com.example.authservice.role.repository.RoleRepository;
@@ -10,6 +12,7 @@ import com.example.authservice.user.repository.UserRepository;
 import com.example.authservice.user.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +37,11 @@ public class RoleServiceImpl implements RoleService {
     @Transactional
     public void assignCustomerRole(UUID userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+            .orElseThrow(() -> new AppException(
+                ErrorCode.USER_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "User not found: " + userId
+            ));
 
         Role customerRole = roleRepository.findByCode(RoleName.CUSTOMER.name())
             .orElseGet(() -> createCustomerRole());

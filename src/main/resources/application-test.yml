@@ -12,7 +12,7 @@ spring:
   mail:
     host: localhost
     port: 1025
-    username: 
+    username: test@example.com
     password: 
     properties:
       mail:
@@ -31,8 +31,6 @@ app:
     private-key: test-private-key
   frontend:
     base-url: http://localhost:3000
-
-# Environment variables that the SMTP service expects
-SMTP_USERNAME: test@example.com
-FRONTEND_BASE_URL: http://localhost:3000
+  backend:
+    base-url: http://localhost:8080
 

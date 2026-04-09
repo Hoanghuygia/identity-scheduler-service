@@ -39,9 +39,11 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/forgot-password",
                     "/api/v1/auth/reset-password",
-                    "/api/v1/auth/verify-email"
+                    "/api/v1/auth/verify-email",
+                    "/api/v1/auth-test/verify-email-test",
+                    "/api/v1/auth-test/health-test"
                 ).permitAll()
-                .requestMatchers("/api/v1/auth/admin-test").hasRole("ADMIN")
+                .requestMatchers("/api/v1/auth-test/admin-test").hasRole("ADMIN")
                 .requestMatchers("/api/v1/auth/**").authenticated()
                 .anyRequest().permitAll()
             )
