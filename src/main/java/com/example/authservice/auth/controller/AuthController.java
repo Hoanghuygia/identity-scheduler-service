@@ -28,6 +28,7 @@ public class AuthController {
 
     private final AuthService authService;
 
+    // DONE: Implement register endpoint
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Register Successfully", authService.register(request)));
@@ -55,6 +56,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Stub response"));
     }
 
+    // DONE: Implement email verification endpoint
     @GetMapping("/verify-email")
     public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestParam String token) {
         authService.verifyEmail(token);
