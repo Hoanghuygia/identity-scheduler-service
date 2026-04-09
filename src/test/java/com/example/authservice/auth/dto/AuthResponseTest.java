@@ -15,7 +15,8 @@ class AuthResponseTest {
             UserStatus.PENDING,
             "access-token",
             "refresh-token",
-            3600L
+            3600L,
+            "session-123"
         );
 
         assertEquals("user123", response.userId());
@@ -25,6 +26,7 @@ class AuthResponseTest {
         assertEquals("access-token", response.accessToken());
         assertEquals("refresh-token", response.refreshToken());
         assertEquals(3600L, response.expiresIn());
+        assertEquals("session-123", response.sessionId());
     }
 
     @Test
@@ -38,5 +40,6 @@ class AuthResponseTest {
         assertNull(response.accessToken());
         assertNull(response.refreshToken());
         assertNull(response.expiresIn());
+        assertNull(response.sessionId());
     }
 }
