@@ -22,5 +22,10 @@ public interface AuthService {
     void verifyEmail(String token);
 
     AuthResponse me();
-}
 
+    void revokeSession(java.util.UUID sessionId);
+
+    void logout(RefreshTokenRequest request);
+
+    void revokeAllSessions();
+}

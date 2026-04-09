@@ -9,7 +9,8 @@ public record AuthResponse(
     UserStatus status,
     String accessToken,
     String refreshToken,
-    Long expiresIn
+    Long expiresIn,
+    String sessionId
 ) {
     public static AuthResponse stub(String message) {
         return new AuthResponse(
@@ -17,6 +18,7 @@ public record AuthResponse(
             "stub@example.com", 
             "Stub User",
             UserStatus.PENDING,
+            null,
             null,
             null,
             null
@@ -31,8 +33,8 @@ public record AuthResponse(
             status,
             null,
             null,
+            null,
             null
         );
     }
 }
-
