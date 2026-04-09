@@ -60,7 +60,7 @@ class EmailVerificationTest {
 
         // Then
         verify(userService).activateUser(userId);
-        verify(authAuditService).record(eq(userId), eq(AuditEventType.EMAIL_VERIFIED), eq("Email verified successfully"), any(), any());
+        verify(authAuditService).record(eq(userId), eq(AuditEventType.EMAIL_VERIFIED), eq("Email verified successfully"));
     }
 
     @Test

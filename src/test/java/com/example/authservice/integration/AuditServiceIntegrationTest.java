@@ -105,7 +105,7 @@ class AuditServiceIntegrationTest {
 
     @Test
     void auditService_withNullUserId_persistsAuditWithoutUser() {
-        authAuditService.record(null, AuditEventType.LOGIN_FAILED, "Failed login attempt", null, null);
+        authAuditService.record(null, AuditEventType.LOGIN_FAILED, "Failed login attempt");
         
         List<AuthAuditLog> auditLogs = authAuditLogRepository.findAll();
         assertThat(auditLogs).hasSize(1);

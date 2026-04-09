@@ -53,7 +53,7 @@ class AuthAuditServiceImplTest {
         when(clientInfoService.parseUserAgent("Mozilla/5.0 Chrome/91.0"))
             .thenReturn(new UserAgentInfo("Chrome", "91", "Windows 10", "Desktop"));
         
-        authAuditService.record(userId, AuditEventType.REGISTER_SUCCESS, "User registered", null, null);
+        authAuditService.record(userId, AuditEventType.REGISTER_SUCCESS, "User registered");
         
         ArgumentCaptor<AuthAuditLog> logCaptor = ArgumentCaptor.forClass(AuthAuditLog.class);
         verify(auditLogRepository).save(logCaptor.capture());
@@ -78,7 +78,7 @@ class AuthAuditServiceImplTest {
         when(clientInfoService.parseUserAgent("Mozilla/5.0 Chrome/91.0"))
             .thenReturn(new UserAgentInfo("Chrome", "91", "Windows 10", "Desktop"));
         
-        authAuditService.record(null, AuditEventType.LOGIN_FAILED, "Invalid credentials", null, null);
+        authAuditService.record(null, AuditEventType.LOGIN_FAILED, "Invalid credentials");
         
         ArgumentCaptor<AuthAuditLog> logCaptor = ArgumentCaptor.forClass(AuthAuditLog.class);
         verify(auditLogRepository).save(logCaptor.capture());

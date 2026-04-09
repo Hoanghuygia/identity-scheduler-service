@@ -5,7 +5,6 @@ import com.example.authservice.audit.entity.AuthAuditLog;
 import com.example.authservice.audit.repository.AuthAuditLogRepository;
 import com.example.authservice.common.dto.UserAgentInfo;
 import com.example.authservice.common.service.ClientInfoService;
-import com.example.authservice.user.entity.User;
 import com.example.authservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,7 @@ public class AuthAuditServiceImpl implements AuthAuditService {
 
     @Override
     @Transactional
-    public void record(UUID userId, AuditEventType eventType, String description, String ipAddress, String userAgent) {
+    public void record(UUID userId, AuditEventType eventType, String description) {
         try {
             // Extract real client information (ignore passed parameters for backward compatibility)
             String realIpAddress = clientInfoService.getClientIpAddress();

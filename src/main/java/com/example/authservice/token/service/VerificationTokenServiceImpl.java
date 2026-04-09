@@ -1,10 +1,14 @@
 package com.example.authservice.token.service;
 
+import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.token.entity.EmailVerificationToken;
 import com.example.authservice.token.repository.EmailVerificationTokenRepository;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -27,7 +31,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
     @Override
     public String createEmailVerificationToken(UUID userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND, "User not found: " + userId));
 
         String tokenValue = generateSecureToken();
         Instant expiresAt = Instant.now().plus(TOKEN_VALIDITY_HOURS, ChronoUnit.HOURS);

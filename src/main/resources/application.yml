@@ -54,6 +54,8 @@ app:
     private-key: ${JWT_PRIVATE_KEY:replace_me}
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+  backend:
+    base-url: ${BACKEND_BASE_URL:http://localhost:8080}
 
 management:
   endpoints:
