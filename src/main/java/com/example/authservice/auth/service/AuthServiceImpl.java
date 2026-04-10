@@ -164,6 +164,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
         try {
             RefreshToken rotatedSession = refreshSessionService.rotate(request.refreshToken(), null, null);
