@@ -1,6 +1,7 @@
 package com.example.authservice.auth.service;
 
 import com.example.authservice.auth.dto.AuthResponse;
+import com.example.authservice.auth.dto.CurrentUserResponse;
 import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
@@ -21,7 +22,7 @@ public interface AuthService {
 
     void verifyEmail(String token);
 
-    AuthResponse me();
+    CurrentUserResponse me();
 
     void revokeSession(java.util.UUID sessionId);
 
