@@ -11,8 +11,14 @@ import com.example.authservice.auth.dto.ResetPasswordRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
+import com.example.authservice.common.service.ClientInfoService;
+import com.example.authservice.common.util.SecurityContextUtil;
+import com.example.authservice.config.AppProperties;
 import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
+import com.example.authservice.security.JwtTokenService;
+import com.example.authservice.token.entity.RefreshToken;
+import com.example.authservice.token.service.RefreshSessionService;
 import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.entity.UserStatus;
@@ -26,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -40,6 +47,11 @@ public class AuthServiceImpl implements AuthService {
     private final AuthAuditService authAuditService;
     private final EmailService emailService;
     private final VerificationTokenService verificationTokenService;
+    private final AuthProviderService localAuthProviderService;
+    private final RefreshSessionService refreshSessionService;
+    private final JwtTokenService jwtTokenService;
+    private final ClientInfoService clientInfoService;
+    private final AppProperties appProperties;
 
     @Override
     @Transactional
@@ -109,21 +121,83 @@ public class AuthServiceImpl implements AuthService {
             savedUser.getStatus(),
             null,  // No access token until email verified
             null,  // No refresh token until email verified
-            null   // No expiration until email verified
+            null,  // No expiration until email verified
+            null
         );
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        // TODO: Implement authentication and issue access + refresh tokens.
-        authAuditService.record(null, AuditEventType.LOGIN_SUCCESS, "Stub login endpoint called");
-        return AuthResponse.stub("Login stub response");
+        try {
+            AuthPrincipal principal = localAuthProviderService.authenticate(request);
+            String deviceInfo = clientInfoService.getUserAgent();
+            String ipAddress = clientInfoService.getClientIpAddress();
+            RefreshToken refreshSession = refreshSessionService.createSession(
+                principal.userId(),
+                principal.provider(),
+                principal.providerSubject(),
+                deviceInfo,
+                ipAddress
+            );
+            String accessToken = jwtTokenService.generateAccessToken(
+                principal.userId(),
+                principal.email(),
+                principal.roles()
+            );
+
+            authAuditService.record(principal.userId(), AuditEventType.LOGIN_SUCCESS, "User login successful");
+
+            return new AuthResponse(
+                principal.userId().toString(),
+                principal.email(),
+                principal.fullName(),
+                principal.status(),
+                accessToken,
+                refreshSession.getToken(),
+                appProperties.getJwt().getAccessTokenExpirySeconds(),
+                refreshSession.getId().toString()
+            );
+        } catch (AppException ex) {
+            authAuditService.record(null, AuditEventType.LOGIN_FAILED, "User login failed: " + ex.getMessage());
+            throw ex;
+        }
     }
 
     @Override
+    @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
-        // TODO: Validate refresh token and rotate token pair.
-        return AuthResponse.stub("Refresh token stub response");
+        try {
+            RefreshToken rotatedSession = refreshSessionService.rotate(request.refreshToken(), null, null);
+            User user = rotatedSession.getUser();
+            Set<String> roles = user.getUserRoles().stream()
+                .map(userRole -> userRole.getRole().getCode())
+                .collect(java.util.stream.Collectors.toSet());
+
+            String accessToken = jwtTokenService.generateAccessToken(user.getId(), user.getEmail(), roles);
+
+            authAuditService.record(user.getId(), AuditEventType.REFRESH_SUCCESS, "Refresh token rotated successfully");
+
+            return new AuthResponse(
+                user.getId().toString(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getStatus(),
+                accessToken,
+                rotatedSession.getToken(),
+                appProperties.getJwt().getAccessTokenExpirySeconds(),
+                rotatedSession.getId().toString()
+            );
+        } catch (AppException ex) {
+            UUID userId = null;
+            try {
+                userId = refreshSessionService.extractUserIdFromRefreshToken(request.refreshToken());
+            } catch (AppException ignored) {
+                // No-op, user cannot be resolved for invalid/revoked/expired tokens.
+            }
+
+            authAuditService.record(userId, AuditEventType.REFRESH_FAILED, "Refresh token rotation failed: " + ex.getMessage());
+            throw ex;
+        }
     }
 
     @Override
@@ -194,5 +268,24 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse me() {
         // TODO: Return authenticated user details from SecurityContext.
         return AuthResponse.stub("Current user stub response");
+    }
+
+    @Override
+    public void revokeSession(UUID sessionId) {
+        UUID userId = SecurityContextUtil.currentUserId();
+        refreshSessionService.revokeBySessionId(userId, sessionId);
+    }
+
+    @Override
+    public void logout(RefreshTokenRequest request) {
+        UUID userId = SecurityContextUtil.currentUserId();
+        refreshSessionService.revokeCurrent(userId, request.refreshToken());
+        authAuditService.record(userId, AuditEventType.LOGOUT, "User logout successful");
+    }
+
+    @Override
+    public void revokeAllSessions() {
+        UUID userId = SecurityContextUtil.currentUserId();
+        refreshSessionService.revokeAll(userId);
     }
 }

@@ -3,24 +3,37 @@ package com.example.authservice.auth.service;
 import com.example.authservice.audit.entity.AuditEventType;
 import com.example.authservice.audit.service.AuthAuditService;
 import com.example.authservice.auth.dto.AuthResponse;
+import com.example.authservice.auth.dto.LoginRequest;
+import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.service.ClientInfoService;
+import com.example.authservice.common.util.SecurityContextUtil;
+import com.example.authservice.config.AppProperties;
 import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
+import com.example.authservice.security.JwtTokenService;
+import com.example.authservice.token.entity.AuthProviderType;
+import com.example.authservice.token.entity.RefreshToken;
+import com.example.authservice.token.service.RefreshSessionService;
 import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.entity.UserStatus;
 import com.example.authservice.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,11 +63,31 @@ class AuthServiceImplTest {
     @Mock
     private VerificationTokenService verificationTokenService;
 
+    @Mock
+    private AuthProviderService localAuthProviderService;
+
+    @Mock
+    private RefreshSessionService refreshSessionService;
+
+    @Mock
+    private JwtTokenService jwtTokenService;
+
+    @Mock
+    private ClientInfoService clientInfoService;
+
+    private AppProperties appProperties;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        appProperties = new AppProperties();
+        AppProperties.Jwt jwt = new AppProperties.Jwt();
+        jwt.setAccessTokenExpirySeconds(900L);
+        appProperties.setJwt(jwt);
+
         authService = new AuthServiceImpl(
             userService,
             roleService, 
@@ -62,7 +95,12 @@ class AuthServiceImplTest {
             eventPublisher,
             authAuditService,
             emailService,
-            verificationTokenService
+            verificationTokenService,
+            localAuthProviderService,
+            refreshSessionService,
+            jwtTokenService,
+            clientInfoService,
+            appProperties
         );
     }
 
@@ -133,6 +171,7 @@ class AuthServiceImplTest {
         );
 
         User existingUser = new User();
+        existingUser.setStatus(UserStatus.ACTIVE);
         when(userService.findByEmail(request.email())).thenReturn(Optional.of(existingUser));
 
         // When & Then
@@ -187,5 +226,155 @@ class AuthServiceImplTest {
         assertEquals("This account is LOCKED. Please contact admin at admin@cty.com", exception.getMessage());
         verify(userService, never()).createUser(any());
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void shouldLoginWithLocalProviderAndCreateSession() {
+        LoginRequest request = new LoginRequest("active@example.com", "StrongPassword123!");
+        UUID userId = UUID.randomUUID();
+        Set<String> roles = Set.of("CUSTOMER");
+
+        AuthPrincipal principal = new AuthPrincipal(
+            userId,
+            "active@example.com",
+            "Active User",
+            UserStatus.ACTIVE,
+            roles,
+            AuthProviderType.LOCAL,
+            "active@example.com"
+        );
+        when(localAuthProviderService.authenticate(request)).thenReturn(principal);
+
+        RefreshToken createdSession = new RefreshToken();
+        createdSession.setId(UUID.randomUUID());
+        createdSession.setToken("new-refresh-token");
+        when(refreshSessionService.createSession(
+            userId,
+            AuthProviderType.LOCAL,
+            "active@example.com",
+            "Mozilla/5.0",
+            "203.0.113.10"
+        )).thenReturn(createdSession);
+        when(clientInfoService.getUserAgent()).thenReturn("Mozilla/5.0");
+        when(clientInfoService.getClientIpAddress()).thenReturn("203.0.113.10");
+
+        when(jwtTokenService.generateAccessToken(userId, "active@example.com", roles))
+            .thenReturn("new-access-token");
+
+        AuthResponse response = authService.login(request);
+
+        assertEquals(userId.toString(), response.userId());
+        assertEquals("active@example.com", response.email());
+        assertEquals("Active User", response.fullName());
+        assertEquals(UserStatus.ACTIVE, response.status());
+        assertEquals("new-access-token", response.accessToken());
+        assertEquals("new-refresh-token", response.refreshToken());
+        assertEquals(900L, response.expiresIn());
+        assertEquals(createdSession.getId().toString(), response.sessionId());
+        verify(authAuditService).record(userId, AuditEventType.LOGIN_SUCCESS, "User login successful");
+    }
+
+    @Test
+    void shouldAuditAndRethrowOnLoginFailure() {
+        LoginRequest request = new LoginRequest("unknown@example.com", "invalid");
+        AppException exception = new AppException(
+            com.example.authservice.common.exception.ErrorCode.INVALID_CREDENTIALS,
+            HttpStatus.UNAUTHORIZED,
+            "Invalid credentials"
+        );
+        when(localAuthProviderService.authenticate(request)).thenThrow(exception);
+
+        AppException thrown = assertThrows(AppException.class, () -> authService.login(request));
+
+        assertEquals(exception, thrown);
+        verify(authAuditService).record(null, AuditEventType.LOGIN_FAILED, "User login failed: Invalid credentials");
+    }
+
+    @Test
+    void shouldRotateRefreshTokenAndIssueNewAccessToken() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("active@example.com");
+        user.setFullName("Active User");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setUserRoles(Collections.emptySet());
+
+        RefreshToken rotated = new RefreshToken();
+        rotated.setId(UUID.randomUUID());
+        rotated.setToken("rotated-refresh-token");
+        rotated.setUser(user);
+
+        when(refreshSessionService.rotate("old-refresh-token", null, null)).thenReturn(rotated);
+        when(jwtTokenService.generateAccessToken(userId, "active@example.com", Collections.emptySet()))
+            .thenReturn("rotated-access-token");
+
+        AuthResponse response = authService.refresh(new RefreshTokenRequest("old-refresh-token"));
+
+        assertEquals(userId.toString(), response.userId());
+        assertEquals("rotated-access-token", response.accessToken());
+        assertEquals("rotated-refresh-token", response.refreshToken());
+        assertEquals(900L, response.expiresIn());
+        assertEquals(rotated.getId().toString(), response.sessionId());
+        verify(authAuditService).record(userId, AuditEventType.REFRESH_SUCCESS, "Refresh token rotated successfully");
+    }
+
+    @Test
+    void shouldAuditAndRethrowOnRefreshFailure() {
+        AppException exception = new AppException(
+            com.example.authservice.common.exception.ErrorCode.REFRESH_TOKEN_INVALID,
+            HttpStatus.UNAUTHORIZED,
+            "Refresh token is invalid"
+        );
+        when(refreshSessionService.rotate("bad-token", null, null)).thenThrow(exception);
+        when(refreshSessionService.extractUserIdFromRefreshToken("bad-token")).thenThrow(exception);
+
+        AppException thrown = assertThrows(AppException.class,
+            () -> authService.refresh(new RefreshTokenRequest("bad-token")));
+
+        assertEquals(exception, thrown);
+        verify(authAuditService).record(null, AuditEventType.REFRESH_FAILED, "Refresh token rotation failed: Refresh token is invalid");
+    }
+
+    @Test
+    void shouldRevokeSessionForCurrentAuthenticatedUser() {
+        UUID userId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            authService.revokeSession(sessionId);
+
+            verify(refreshSessionService).revokeBySessionId(userId, sessionId);
+        }
+    }
+
+    @Test
+    void shouldLogoutByRevokingCurrentRefreshTokenAndRecordingAudit() {
+        UUID userId = UUID.randomUUID();
+        RefreshTokenRequest request = new RefreshTokenRequest("refresh-token-to-revoke");
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            authService.logout(request);
+
+            verify(refreshSessionService).revokeCurrent(userId, "refresh-token-to-revoke");
+            verify(authAuditService).record(userId, AuditEventType.LOGOUT, "User logout successful");
+        }
+    }
+
+    @Test
+    void shouldRevokeAllSessionsForCurrentAuthenticatedUser() {
+        UUID userId = UUID.randomUUID();
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            authService.revokeAllSessions();
+
+            verify(refreshSessionService).revokeAll(userId);
+        }
     }
 }

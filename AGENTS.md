@@ -180,3 +180,9 @@ Packages are **feature-based** with layered sub-packages: `entity/`, `repository
 | `dev`   | PostgreSQL | Enabled | Local development  |
 | `test`  | H2         | Disabled| Tests              |
 | `prod`  | PostgreSQL | Enabled | Production         |
+
+## Additional Notes
+
+- Do not remove existing comments.
+- Do not include unnecessary test cases.
+- When creating a new worktree, use rebase to keep the current branch history clear.

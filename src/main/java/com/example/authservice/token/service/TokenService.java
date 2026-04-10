@@ -6,6 +6,9 @@ public interface TokenService {
 
     String createRefreshToken(UUID userId);
 
-    boolean isRefreshTokenValid(String token);
-}
+    String rotateRefreshToken(String refreshToken);
 
+    boolean isRefreshTokenValid(String token);
+
+    UUID extractUserIdFromRefreshToken(String refreshToken);
+}

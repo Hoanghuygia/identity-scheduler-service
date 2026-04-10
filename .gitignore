@@ -10,3 +10,5 @@ target/
 .settings/
 .factorypath
 .worktrees/
+
+src/main/resources/keys/*

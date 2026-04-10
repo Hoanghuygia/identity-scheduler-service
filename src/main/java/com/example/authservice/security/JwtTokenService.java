@@ -11,8 +11,9 @@ public interface JwtTokenService {
 
     boolean isTokenValid(String token);
 
+    JwtTokenValidationResult validateAccessToken(String token);
+
     UUID extractUserId(String token);
 
     Set<String> extractRoles(String token);
 }
-
