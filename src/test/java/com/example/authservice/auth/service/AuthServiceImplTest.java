@@ -3,11 +3,13 @@ package com.example.authservice.auth.service;
 import com.example.authservice.audit.entity.AuditEventType;
 import com.example.authservice.audit.service.AuthAuditService;
 import com.example.authservice.auth.dto.AuthResponse;
+import com.example.authservice.auth.dto.CurrentUserResponse;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.common.util.SecurityContextUtil;
 import com.example.authservice.config.AppProperties;
@@ -36,9 +38,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AuthServiceImplTest {
 
@@ -347,6 +356,48 @@ class AuthServiceImplTest {
             authService.revokeSession(sessionId);
 
             verify(refreshSessionService).revokeBySessionId(userId, sessionId);
+        }
+    }
+
+    @Test
+    void shouldReturnCurrentUserProfileFromSecurityContext() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("active@example.com");
+        user.setFullName("Active User");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setEmailVerified(true);
+        when(userService.getById(userId)).thenReturn(user);
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            CurrentUserResponse response = authService.me();
+
+            assertEquals(userId.toString(), response.userId());
+            assertEquals("active@example.com", response.email());
+            assertEquals("Active User", response.fullName());
+            assertEquals(UserStatus.ACTIVE, response.status());
+            assertTrue(response.emailVerified());
+            verify(userService).getById(userId);
+        }
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenCurrentUserMissing() {
+        UUID userId = UUID.randomUUID();
+        when(userService.getById(userId)).thenReturn(null);
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            AppException exception = assertThrows(AppException.class, () -> authService.me());
+
+            assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+            assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+            assertEquals("User not found", exception.getMessage());
+            verify(userService).getById(userId);
         }
     }
 

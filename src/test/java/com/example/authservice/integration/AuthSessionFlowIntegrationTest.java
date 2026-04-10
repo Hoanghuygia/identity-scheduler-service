@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -161,6 +162,34 @@ class AuthSessionFlowIntegrationTest {
         assertThat(updatedA).extracting("revoked").isEqualTo(true);
         assertThat(updatedB).extracting("revoked").isEqualTo(true);
         assertThat(untouchedOther).extracting("revoked").isEqualTo(false);
+    }
+
+    @Test
+    void shouldReturnCurrentUserProfileForAuthenticatedRequest() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String email = "me-user@example.com";
+        saveUser(userId, email);
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .with(authenticated(userId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("Current user profile fetched successfully"))
+            .andExpect(jsonPath("$.data.userId").value(userId.toString()))
+            .andExpect(jsonPath("$.data.email").value(email))
+            .andExpect(jsonPath("$.data.fullName").value(TEST_FULL_NAME))
+            .andExpect(jsonPath("$.data.status").value(UserStatus.ACTIVE.name()))
+            .andExpect(jsonPath("$.data.emailVerified").value(true))
+            .andExpect(jsonPath("$.data.accessToken").doesNotExist())
+            .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+            .andExpect(jsonPath("$.data.sessionId").doesNotExist())
+            .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenMeCalledWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me"))
+            .andExpect(status().isUnauthorized());
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor authenticated(UUID userId) {

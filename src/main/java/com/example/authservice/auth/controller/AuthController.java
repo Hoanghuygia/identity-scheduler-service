@@ -1,6 +1,7 @@
 package com.example.authservice.auth.controller;
 
 import com.example.authservice.auth.dto.AuthResponse;
+import com.example.authservice.auth.dto.CurrentUserResponse;
 import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
@@ -64,13 +65,14 @@ public class AuthController {
     @GetMapping("/verify-email")
     public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestParam String token) {
         authService.verifyEmail(token);
-        return ResponseEntity.ok(ApiResponse.success("Stub response"));
+        return ResponseEntity.ok(ApiResponse.success("Verify email successful"));
     }
 
+    // DONE: Implement current user profile endpoint
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<AuthResponse>> me() {
-        return ResponseEntity.ok(ApiResponse.success("Stub response", authService.me()));
+    public ResponseEntity<ApiResponse<CurrentUserResponse>> me() {
+        return ResponseEntity.ok(ApiResponse.success("Current user profile fetched successfully", authService.me()));
     }
 
     // DONE: Implement revoke session endpoint

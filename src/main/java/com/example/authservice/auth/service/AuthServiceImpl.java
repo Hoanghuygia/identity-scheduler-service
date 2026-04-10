@@ -3,6 +3,7 @@ package com.example.authservice.auth.service;
 import com.example.authservice.audit.entity.AuditEventType;
 import com.example.authservice.audit.service.AuthAuditService;
 import com.example.authservice.auth.dto.AuthResponse;
+import com.example.authservice.auth.dto.CurrentUserResponse;
 import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
@@ -265,9 +266,25 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthResponse me() {
-        // TODO: Return authenticated user details from SecurityContext.
-        return AuthResponse.stub("Current user stub response");
+    public CurrentUserResponse me() {
+        UUID userId = SecurityContextUtil.currentUserId();
+        User user = userService.getById(userId);
+
+        if (user == null) {
+            throw new AppException(
+                ErrorCode.USER_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "User not found"
+            );
+        }
+
+        return new CurrentUserResponse(
+            user.getId().toString(),
+            user.getEmail(),
+            user.getFullName(),
+            user.getStatus(),
+            user.isEmailVerified()
+        );
     }
 
     @Override
