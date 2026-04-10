@@ -8,6 +8,7 @@ import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.common.util.SecurityContextUtil;
 import com.example.authservice.config.AppProperties;
@@ -347,6 +348,47 @@ class AuthServiceImplTest {
             authService.revokeSession(sessionId);
 
             verify(refreshSessionService).revokeBySessionId(userId, sessionId);
+        }
+    }
+
+    @Test
+    void shouldReturnCurrentUserProfileFromSecurityContext() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("active@example.com");
+        user.setFullName("Active User");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setEmailVerified(true);
+        when(userService.getById(userId)).thenReturn(user);
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            AuthResponse response = authService.me();
+
+            assertEquals(userId.toString(), response.userId());
+            assertEquals("active@example.com", response.email());
+            assertEquals("Active User", response.fullName());
+            assertEquals(UserStatus.ACTIVE, response.status());
+            verify(userService).getById(userId);
+        }
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenCurrentUserMissing() {
+        UUID userId = UUID.randomUUID();
+        when(userService.getById(userId)).thenReturn(null);
+
+        try (MockedStatic<SecurityContextUtil> mockedSecurityContextUtil = mockStatic(SecurityContextUtil.class)) {
+            mockedSecurityContextUtil.when(SecurityContextUtil::currentUserId).thenReturn(userId);
+
+            AppException exception = assertThrows(AppException.class, () -> authService.me());
+
+            assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+            assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+            assertEquals("User not found", exception.getMessage());
+            verify(userService).getById(userId);
         }
     }
 
