@@ -11,6 +11,7 @@ import com.example.authservice.auth.dto.ResetPasswordRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
+import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.common.util.SecurityContextUtil;
 import com.example.authservice.config.AppProperties;
 import com.example.authservice.mail.service.EmailService;
@@ -49,6 +50,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthProviderService localAuthProviderService;
     private final RefreshSessionService refreshSessionService;
     private final JwtTokenService jwtTokenService;
+    private final ClientInfoService clientInfoService;
     private final AppProperties appProperties;
 
     @Override
@@ -128,12 +130,14 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(LoginRequest request) {
         try {
             AuthPrincipal principal = localAuthProviderService.authenticate(request);
+            String deviceInfo = clientInfoService.getUserAgent();
+            String ipAddress = clientInfoService.getClientIpAddress();
             RefreshToken refreshSession = refreshSessionService.createSession(
                 principal.userId(),
                 principal.provider(),
                 principal.providerSubject(),
-                null,
-                null
+                deviceInfo,
+                ipAddress
             );
             String accessToken = jwtTokenService.generateAccessToken(
                 principal.userId(),

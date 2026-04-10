@@ -27,10 +27,46 @@ app:
     issuer: test-auth-service
     access-token-expiry-seconds: 900
     refresh-token-expiry-seconds: 1209600
-    public-key: test-public-key
-    private-key: test-private-key
+    public-key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1BHfEMVKQJwBEXzYZbVu
+      ipd2JfUlYcARtw/R6KHIb4jdNayzbcyAwt3+gloLJLoqwXcvCU/ggbSqlVqZLFsA
+      UzVFTh8n3agtlQX1FjkHD9f6DXyAa69mIXf7A9O7vwNQucVVxR8gC2NQkYAEeOe8
+      5XsBsNWbpD1Fw+hHDQ6AluWVNvrjTk+rKfJVrT+hH/aWOkBpS8Fgr5WhqDCalY6b
+      +eSvG5fgFSHx6qQF7YqEqdDT+ECY9GDRJB1gPU9dBfn8FVGQuC/wE0eAELE3EEsZ
+      Y+yH13Y1V7W2EnY0io3LiubMRAOaRBQeUe+F4Lc35+01WTouJirXZjuJ2mmT3gd+
+      owIDAQAB
+      -----END PUBLIC KEY-----
+    private-key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDUEd8QxUpAnAER
+      fNhltW6Kl3Yl9SVhwBG3D9HoochviN01rLNtzIDC3f6CWgskuirBdy8JT+CBtKqV
+      WpksWwBTNUVOHyfdqC2VBfUWOQcP1/oNfIBrr2Yhd/sD07u/A1C5xVXFHyALY1CR
+      gAR457zlewGw1ZukPUXD6EcNDoCW5ZU2+uNOT6sp8lWtP6Ef9pY6QGlLwWCvlaGo
+      MJqVjpv55K8bl+AVIfHqpAXtioSp0NP4QJj0YNEkHWA9T10F+fwVUZC4L/ATR4AQ
+      sTcQSxlj7IfXdjVXtbYSdjSKjcuK5sxEA5pEFB5R74Xgtzfn7TVZOi4mKtdmO4na
+      aZPeB36jAgMBAAECggEACaFpeAlVlrs0QIyNsTS84+CpS2OnbRnRVCG3nnELuVDw
+      UW8vKMsoL8aat7sKFYK6Iqtca00BfN0XqrerYWcdNn93+b+9dOSdyU40yUERZTKh
+      gY+dWgaO70cpEuKV0etUdP3qqAyCoocXPLxLt7KNEqjJigkb9n3tLKPgPM4N9eGQ
+      Ui2wBDL9KuSJ5AI7xthTkHa8UnUyfJrqzgWztzbtC6LI39loSVxPyNYJx+otYwqJ
+      XBAwArboRgc1q1CrQKqX5qNAv/WUA7QPqAheqjJaTKvqnMgQk1EvbUh8greUOwv5
+      KTAv/Y3iRKVcyqaZOxx0OWYDKYUTQM+/mwGl/YiMEQKBgQDzGnOZiBxbh+dyQCri
+      7PR6UDW+D/kgYFiBSqsm6lKtDlD2MOAy+OB2vLdB2PmaaYmeJwYBS+YBqIf2Zdo0
+      rwaUJf3qezWxHo/6xBaj/Wz+j/sQNf8IlsAhKC5mxwvTxsBHY4sH4ao6CV5ms7ke
+      q63F7HabDKqhGJiY6X0ImxWXkwKBgQDfUfVbwu5sVGi4+QipZ7aYHJf76jVEjkEX
+      SAuTCyFq83Kl5UndPgmdfMKUOv2OjYcZuWmbx/Cyh4NC42Yy/cAbB8kHYDOqEMQi
+      W43bEF8hUfBpIlxSPQ8X5IKvgubFAWt45G0sbxGjubI+Wwyz8m34WPIIYW7xOi6n
+      XE7u2mrGsQKBgQDplcH7hNASlrwpiERs9NdX61goPnrWxBxmZtObOc2k4LukQoQ6
+      Fe6/yEaha5Ux7DRCFSbs+fuQHlo9w9HtiztcAEFBG5AUltQrVFyYx7oBw2CuS+O4
+      YflMIqqrMJhJrZA1SA1fzlJdH4FoV0oJkVYQdkvkYUBWOCbvznHIYhNWJwKBgFyI
+      JiUOYSIr23SBY5Bl8+eVOXhdNBMi6l+OL5WO8BrToraQigmNEgjaT/mBc9xkUg1b
+      oSG2N8qRkdbeSFNqhvXsROS0fNPDvLELxHx3jSNOQ1IctaoxuJZKzceRcrNAglqG
+      M6JMpz9yyyNBMMNC+UQE/sxwKrrzQ69+9QnNIJ8RAoGBAMmt4RTgGjO6+6gOxxL6
+      QDR6HL29DNrtSHj9JJQVPiBRsriiQOK/DMW59VaVLktd9LtDFiPtarVPe96IK6Uc
+      0n8Y4ocx62cUkuj6n7XQffmK2KL+LXgjALzL1LJArwj9mZiLVGRm/3s/pQSqvZ6U
+      qYHghE/ZNOMw3+zKM+y4lW3Q
+      -----END PRIVATE KEY-----
   frontend:
     base-url: http://localhost:3000
   backend:
     base-url: http://localhost:8080
-

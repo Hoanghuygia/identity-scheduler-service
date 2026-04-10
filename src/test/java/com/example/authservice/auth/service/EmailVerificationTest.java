@@ -3,6 +3,7 @@ package com.example.authservice.auth.service;
 import com.example.authservice.audit.entity.AuditEventType;
 import com.example.authservice.audit.service.AuthAuditService;
 import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.config.AppProperties;
 import com.example.authservice.security.JwtTokenService;
 import com.example.authservice.token.service.RefreshSessionService;
@@ -40,6 +41,9 @@ class EmailVerificationTest {
     @Mock
     private JwtTokenService jwtTokenService;
 
+    @Mock
+    private ClientInfoService clientInfoService;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -62,6 +66,7 @@ class EmailVerificationTest {
             localAuthProviderService,
             refreshSessionService,
             jwtTokenService,
+            clientInfoService,
             appProperties
         );
     }

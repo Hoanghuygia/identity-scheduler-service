@@ -8,6 +8,7 @@ import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.dto.ResetPasswordRequest;
 import com.example.authservice.auth.service.AuthService;
 import com.example.authservice.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,9 +35,10 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Register Successfully", authService.register(request)));
     }
 
+    // DONE: Implement login endpoint
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Stub response", authService.login(request)));
+        return ResponseEntity.ok(ApiResponse.success("Login successful", authService.login(request)));
     }
 
     @PostMapping("/refresh")
@@ -75,6 +77,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request);
         return ResponseEntity.ok(ApiResponse.success("Logout successful"));

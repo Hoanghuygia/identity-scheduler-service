@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
@@ -24,6 +25,7 @@ public class LocalAuthProviderService implements AuthProviderService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional(readOnly = true)
     public AuthPrincipal authenticate(LoginRequest request) {
         User user = userService.findByEmail(request.email())
             .orElseThrow(() -> invalidCredentials(request.email()));

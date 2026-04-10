@@ -8,6 +8,7 @@ import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
+import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.common.util.SecurityContextUtil;
 import com.example.authservice.config.AppProperties;
 import com.example.authservice.mail.service.EmailService;
@@ -71,6 +72,9 @@ class AuthServiceImplTest {
     @Mock
     private JwtTokenService jwtTokenService;
 
+    @Mock
+    private ClientInfoService clientInfoService;
+
     private AppProperties appProperties;
 
     private AuthServiceImpl authService;
@@ -95,6 +99,7 @@ class AuthServiceImplTest {
             localAuthProviderService,
             refreshSessionService,
             jwtTokenService,
+            clientInfoService,
             appProperties
         );
     }
@@ -247,9 +252,11 @@ class AuthServiceImplTest {
             userId,
             AuthProviderType.LOCAL,
             "active@example.com",
-            null,
-            null
+            "Mozilla/5.0",
+            "203.0.113.10"
         )).thenReturn(createdSession);
+        when(clientInfoService.getUserAgent()).thenReturn("Mozilla/5.0");
+        when(clientInfoService.getClientIpAddress()).thenReturn("203.0.113.10");
 
         when(jwtTokenService.generateAccessToken(userId, "active@example.com", roles))
             .thenReturn("new-access-token");
