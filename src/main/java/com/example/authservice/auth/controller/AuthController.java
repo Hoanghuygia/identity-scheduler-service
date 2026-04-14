@@ -48,12 +48,14 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Refresh successful", authService.refresh(request)));
     }
 
+    // DONE: Implement forgot password endpoint
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
         return ResponseEntity.ok(ApiResponse.success("If the email exists, a reset link has been sent"));
     }
 
+    // DONE: Implement reset password endpoint
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
