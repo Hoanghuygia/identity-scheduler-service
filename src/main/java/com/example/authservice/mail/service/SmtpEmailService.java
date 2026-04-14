@@ -48,13 +48,11 @@ public class SmtpEmailService implements EmailService {
     }
 
     @Override
-    public void sendPasswordResetEmail(String email, String token) {
-        String resetUrl = String.format("%s/reset-password?token=%s", frontendBaseUrl, token);
-        
+    public void sendPasswordResetEmail(String email, String token) {        
         EmailDto emailDto = new EmailDto(
             email,
             "Password Reset - Identity Service",
-            resetUrl,
+            null,
             token
         );
 

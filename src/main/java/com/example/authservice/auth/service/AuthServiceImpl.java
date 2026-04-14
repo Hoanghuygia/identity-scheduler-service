@@ -9,6 +9,7 @@ import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.dto.ResetPasswordRequest;
+import com.example.authservice.auth.event.UserForgetPasswordEvent;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
@@ -18,7 +19,9 @@ import com.example.authservice.config.AppProperties;
 import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
 import com.example.authservice.security.JwtTokenService;
+import com.example.authservice.token.entity.EmailVerificationToken;
 import com.example.authservice.token.entity.RefreshToken;
+import com.example.authservice.token.entity.TokenPurpose;
 import com.example.authservice.token.service.RefreshSessionService;
 import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
@@ -97,7 +100,7 @@ public class AuthServiceImpl implements AuthService {
         user.setStatus(UserStatus.PENDING);
         user.setEmailVerified(false);
 
-        User savedUser = userService.createUser(user);
+        User savedUser = userService.saveUser(user);
         
         // Assign CUSTOMER role
         roleService.assignCustomerRole(savedUser.getId());
@@ -202,16 +205,49 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
-        // TODO: Generate password reset token and send email.
-        emailService.sendPasswordResetEmail(request.email(), "stub-token");
-        authAuditService.record(null, AuditEventType.PASSWORD_RESET_REQUESTED, "Stub forgot password called");
+        log.info("forgot_password_requested email={}", request.email());
+
+        Optional<User> existingUserOptional = userService.findByEmail(request.email());
+        if (existingUserOptional.isEmpty()) {
+            log.info("forgot_password_noop_email_not_found email={}", request.email());
+            return;
+        }
+
+        User existingUser = existingUserOptional.get();
+        UserStatus existingStatus = existingUser.getStatus();
+        if (existingStatus != UserStatus.ACTIVE) {
+            log.warn("forgot_password_noop_ineligible_status email={} status={}", request.email(), existingStatus);
+            return;
+        }
+
+        UserForgetPasswordEvent event = new UserForgetPasswordEvent(existingUser.getId(), existingUser.getEmail());
+        eventPublisher.publishEvent(event);
+        authAuditService.record(existingUser.getId(), AuditEventType.FORGOT_PASSWORD_REQUESTED, "Forgot password requested");
+        log.info("forgot_password_event_published user_id={} email={}", existingUser.getId(), existingUser.getEmail());
     }
 
     @Override
+    @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        // TODO: Validate reset token and update password hash.
-        authAuditService.record(null, AuditEventType.PASSWORD_RESET_COMPLETED, "Stub reset password called");
+        User user = userService.findByEmail(request.email())
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!verificationTokenService.validateEmailVerificationToken(request.token(), TokenPurpose.PASSWORD_RESET)) {
+            throw new AppException(ErrorCode.INVALID_TOKEN, HttpStatus.BAD_REQUEST, "Invalid or expired reset token");
+        }
+
+        EmailVerificationToken token = verificationTokenService.getToken(request.token(), TokenPurpose.PASSWORD_RESET);
+        if (token == null || !token.getUser().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.INVALID_TOKEN, HttpStatus.BAD_REQUEST, "Invalid reset token for email");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userService.saveUser(user);
+        verificationTokenService.markTokenUsed(token);
+
+        authAuditService.record(user.getId(), AuditEventType.PASSWORD_RESET_COMPLETED, "Password reset completed successfully");
     }
 
     @Override
@@ -220,7 +256,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("email_verification_started token={}", token);
 
         // Validate token
-        if (!verificationTokenService.validateEmailVerificationToken(token)) {
+        if (!verificationTokenService.validateEmailVerificationToken(token, TokenPurpose.REGISTER_VERIFICATION)) {
             log.warn("email_verification_failed_invalid_token token={}", token);
             throw new AppException(
                 ErrorCode.INVALID_TOKEN, 

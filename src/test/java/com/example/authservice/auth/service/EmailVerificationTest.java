@@ -6,6 +6,7 @@ import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.service.ClientInfoService;
 import com.example.authservice.config.AppProperties;
 import com.example.authservice.security.JwtTokenService;
+import com.example.authservice.token.entity.TokenPurpose;
 import com.example.authservice.token.service.RefreshSessionService;
 import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
@@ -83,7 +84,7 @@ class EmailVerificationTest {
         user.setStatus(UserStatus.PENDING);
         user.setEmailVerified(false);
 
-        when(verificationTokenService.validateEmailVerificationToken(token)).thenReturn(true);
+        when(verificationTokenService.validateEmailVerificationToken(token, TokenPurpose.REGISTER_VERIFICATION)).thenReturn(true);
         when(verificationTokenService.getUserIdFromToken(token)).thenReturn(userId);
         when(userService.getById(userId)).thenReturn(user);
 
@@ -100,7 +101,7 @@ class EmailVerificationTest {
         // Given
         String invalidToken = "invalid-token";
         
-        when(verificationTokenService.validateEmailVerificationToken(invalidToken)).thenReturn(false);
+        when(verificationTokenService.validateEmailVerificationToken(invalidToken, TokenPurpose.REGISTER_VERIFICATION)).thenReturn(false);
 
         // When & Then
         AppException exception = assertThrows(AppException.class, () -> {
@@ -122,7 +123,7 @@ class EmailVerificationTest {
         user.setStatus(UserStatus.ACTIVE);
         user.setEmailVerified(true);
 
-        when(verificationTokenService.validateEmailVerificationToken(token)).thenReturn(true);
+        when(verificationTokenService.validateEmailVerificationToken(token, TokenPurpose.REGISTER_VERIFICATION)).thenReturn(true);
         when(verificationTokenService.getUserIdFromToken(token)).thenReturn(userId);
         when(userService.getById(userId)).thenReturn(user);
 

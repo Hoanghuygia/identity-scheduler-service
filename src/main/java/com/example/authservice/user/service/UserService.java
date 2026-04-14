@@ -13,7 +13,7 @@ public interface UserService {
 
     User getById(UUID userId);  // Returns User or null
 
-    User createUser(User user);
+    User saveUser(User user);
 
     void activateUser(UUID userId);
 }

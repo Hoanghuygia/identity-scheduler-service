@@ -3,6 +3,8 @@ package com.example.authservice.token.entity;
 import com.example.authservice.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -37,6 +39,10 @@ public class EmailVerificationToken {
     @Column(nullable = false)
     private boolean used;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private TokenPurpose purpose;
+
     @Column(name = "used_at")
     private Instant usedAt;
 
@@ -44,5 +50,4 @@ public class EmailVerificationToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 }
-
 
