@@ -3,6 +3,7 @@ package com.example.authservice.token.service;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
 import com.example.authservice.token.entity.EmailVerificationToken;
+import com.example.authservice.token.entity.TokenPurpose;
 import com.example.authservice.token.repository.EmailVerificationTokenRepository;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.repository.UserRepository;
@@ -15,6 +16,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,7 +31,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
     private final UserRepository userRepository;
 
     @Override
-    public String createEmailVerificationToken(UUID userId) {
+    public String createEmailVerificationToken(UUID userId, TokenPurpose purpose) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND, "User not found: " + userId));
 
@@ -42,14 +44,15 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
         token.setToken(tokenValue);
         token.setExpiresAt(expiresAt);
         token.setUsed(false);
+        token.setPurpose(purpose);
 
         tokenRepository.save(token);
         return tokenValue;
     }
 
     @Override
-    public boolean validateEmailVerificationToken(String token) {
-        Optional<EmailVerificationToken> tokenOpt = tokenRepository.findByTokenAndUsedFalse(token);
+    public boolean validateEmailVerificationToken(String token, TokenPurpose purpose) {
+        Optional<EmailVerificationToken> tokenOpt = tokenRepository.findByTokenAndUsedFalseAndPurpose(token, purpose);
         
         if (tokenOpt.isEmpty()) {
             return false;
@@ -64,6 +67,30 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
         return tokenRepository.findByTokenAndUsedFalse(token)
             .map(t -> t.getUser().getId())
             .orElse(null);
+    }
+
+    @Override
+    public EmailVerificationToken getToken(String token, TokenPurpose purpose) {
+        return tokenRepository.findByTokenAndUsedFalseAndPurpose(token, purpose)
+            .orElse(null);
+    }
+
+    @Override
+    public void markTokenUsed(EmailVerificationToken token) {
+        token.setUsed(true);
+        token.setUsedAt(Instant.now());
+        tokenRepository.save(token);
+    }
+
+    @Override
+    public void invalidateUnusedTokens(UUID userId, TokenPurpose purpose) {
+        List<EmailVerificationToken> unusedTokens = tokenRepository.findAllByUserIdAndPurposeAndUsedFalse(userId, purpose);
+        Instant now = Instant.now();
+        for (EmailVerificationToken token : unusedTokens) {
+            token.setUsed(true);
+            token.setUsedAt(now);
+        }
+        tokenRepository.saveAll(unusedTokens);
     }
 
     private String generateSecureToken() {

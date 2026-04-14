@@ -51,14 +51,13 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Stub response"));
+        return ResponseEntity.ok(ApiResponse.success("If the email exists, a reset link has been sent"));
     }
 
-    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Stub response"));
+        return ResponseEntity.ok(ApiResponse.success("Password reset successful"));
     }
 
     // DONE: Implement email verification endpoint

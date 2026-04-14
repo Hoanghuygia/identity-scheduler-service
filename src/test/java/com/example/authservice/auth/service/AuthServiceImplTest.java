@@ -4,9 +4,12 @@ import com.example.authservice.audit.entity.AuditEventType;
 import com.example.authservice.audit.service.AuthAuditService;
 import com.example.authservice.auth.dto.AuthResponse;
 import com.example.authservice.auth.dto.CurrentUserResponse;
+import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.RefreshTokenRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
+import com.example.authservice.auth.dto.ResetPasswordRequest;
+import com.example.authservice.auth.event.UserForgetPasswordEvent;
 import com.example.authservice.auth.event.UserRegisteredEvent;
 import com.example.authservice.common.exception.AppException;
 import com.example.authservice.common.exception.ErrorCode;
@@ -17,7 +20,9 @@ import com.example.authservice.mail.service.EmailService;
 import com.example.authservice.role.service.RoleService;
 import com.example.authservice.security.JwtTokenService;
 import com.example.authservice.token.entity.AuthProviderType;
+import com.example.authservice.token.entity.EmailVerificationToken;
 import com.example.authservice.token.entity.RefreshToken;
+import com.example.authservice.token.entity.TokenPurpose;
 import com.example.authservice.token.service.RefreshSessionService;
 import com.example.authservice.token.service.VerificationTokenService;
 import com.example.authservice.user.entity.User;
@@ -44,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -132,7 +138,7 @@ class AuthServiceImplTest {
 
         when(userService.findByEmail(request.email())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
-        when(userService.createUser(any(User.class))).thenReturn(savedUser);
+        when(userService.saveUser(any(User.class))).thenReturn(savedUser);
 
         // When
         AuthResponse response = authService.register(request);
@@ -147,7 +153,7 @@ class AuthServiceImplTest {
 
         // Verify user creation
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userService).createUser(userCaptor.capture());
+        verify(userService).saveUser(userCaptor.capture());
         User capturedUser = userCaptor.getValue();
         assertEquals(request.email(), capturedUser.getEmail());
         assertEquals("hashed-password", capturedUser.getPasswordHash());
@@ -189,7 +195,7 @@ class AuthServiceImplTest {
         });
 
         assertEquals("Email already exists", exception.getMessage());
-        verify(userService, never()).createUser(any());
+        verify(userService, never()).saveUser(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -211,7 +217,7 @@ class AuthServiceImplTest {
         AppException exception = assertThrows(AppException.class, () -> authService.register(request));
 
         assertEquals("This account is SUSPENDED. Please contact admin at admin@cty.com", exception.getMessage());
-        verify(userService, never()).createUser(any());
+        verify(userService, never()).saveUser(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -233,7 +239,7 @@ class AuthServiceImplTest {
         AppException exception = assertThrows(AppException.class, () -> authService.register(request));
 
         assertEquals("This account is LOCKED. Please contact admin at admin@cty.com", exception.getMessage());
-        verify(userService, never()).createUser(any());
+        verify(userService, never()).saveUser(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -343,6 +349,100 @@ class AuthServiceImplTest {
 
         assertEquals(exception, thrown);
         verify(authAuditService).record(null, AuditEventType.REFRESH_FAILED, "Refresh token rotation failed: Refresh token is invalid");
+    }
+
+    @Test
+    void shouldReturnSilentlyWhenForgotPasswordEmailDoesNotExist() {
+        ForgotPasswordRequest request = new ForgotPasswordRequest("missing@example.com");
+        when(userService.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        authService.forgotPassword(request);
+
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(authAuditService, never()).record(isNull(), eq(AuditEventType.FORGOT_PASSWORD_REQUESTED), any());
+    }
+
+    @Test
+    void shouldPublishForgotPasswordEventForActiveUser() {
+        UUID userId = UUID.randomUUID();
+        User activeUser = new User();
+        activeUser.setId(userId);
+        activeUser.setEmail("active@example.com");
+        activeUser.setStatus(UserStatus.ACTIVE);
+        when(userService.findByEmail("active@example.com")).thenReturn(Optional.of(activeUser));
+
+        authService.forgotPassword(new ForgotPasswordRequest("active@example.com"));
+
+        ArgumentCaptor<UserForgetPasswordEvent> eventCaptor = ArgumentCaptor.forClass(UserForgetPasswordEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(userId, eventCaptor.getValue().userId());
+        assertEquals("active@example.com", eventCaptor.getValue().email());
+        verify(authAuditService).record(userId, AuditEventType.FORGOT_PASSWORD_REQUESTED, "Forgot password requested");
+    }
+
+    @Test
+    void shouldRejectResetPasswordWhenTokenInvalid() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("active@example.com");
+        when(userService.findByEmail("active@example.com")).thenReturn(Optional.of(user));
+        when(verificationTokenService.validateEmailVerificationToken("bad-token", TokenPurpose.PASSWORD_RESET))
+            .thenReturn(false);
+
+        AppException exception = assertThrows(AppException.class,
+            () -> authService.resetPassword(new ResetPasswordRequest("active@example.com", "bad-token", "NewStrongPass123!")));
+
+        assertEquals(ErrorCode.INVALID_TOKEN, exception.getErrorCode());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void shouldRejectResetPasswordWhenTokenUserDoesNotMatchEmail() {
+        UUID userId = UUID.randomUUID();
+        UUID anotherUserId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("active@example.com");
+        when(userService.findByEmail("active@example.com")).thenReturn(Optional.of(user));
+        when(verificationTokenService.validateEmailVerificationToken("reset-token", TokenPurpose.PASSWORD_RESET))
+            .thenReturn(true);
+
+        User anotherUser = new User();
+        anotherUser.setId(anotherUserId);
+        EmailVerificationToken token = new EmailVerificationToken();
+        token.setId(UUID.randomUUID());
+        token.setUser(anotherUser);
+        when(verificationTokenService.getToken("reset-token", TokenPurpose.PASSWORD_RESET)).thenReturn(token);
+
+        AppException exception = assertThrows(AppException.class,
+            () -> authService.resetPassword(new ResetPasswordRequest("active@example.com", "reset-token", "NewStrongPass123!")));
+
+        assertEquals(ErrorCode.INVALID_TOKEN, exception.getErrorCode());
+        verify(verificationTokenService, never()).markTokenUsed(any());
+    }
+
+    @Test
+    void shouldResetPasswordWhenTokenValid() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("active@example.com");
+        when(userService.findByEmail("active@example.com")).thenReturn(Optional.of(user));
+        when(verificationTokenService.validateEmailVerificationToken("reset-token", TokenPurpose.PASSWORD_RESET))
+            .thenReturn(true);
+
+        EmailVerificationToken token = new EmailVerificationToken();
+        token.setId(UUID.randomUUID());
+        token.setUser(user);
+        when(verificationTokenService.getToken("reset-token", TokenPurpose.PASSWORD_RESET)).thenReturn(token);
+        when(passwordEncoder.encode("NewStrongPass123!")).thenReturn("hashed-new-password");
+
+        authService.resetPassword(new ResetPasswordRequest("active@example.com", "reset-token", "NewStrongPass123!"));
+
+        assertEquals("hashed-new-password", user.getPasswordHash());
+        verify(userService).saveUser(user);
+        verify(verificationTokenService).markTokenUsed(token);
+        verify(authAuditService).record(userId, AuditEventType.PASSWORD_RESET_COMPLETED, "Password reset completed successfully");
     }
 
     @Test

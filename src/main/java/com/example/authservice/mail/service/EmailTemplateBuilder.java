@@ -41,13 +41,10 @@ public class EmailTemplateBuilder {
             </head>
             <body>
                 <h2>Reset Your Password</h2>
-                <p>Please click the link below to reset your password:</p>
-                <a href="%s">Reset Password</a>
-                <p>If the link doesn't work, copy and paste this URL into your browser:</p>
-                <p>%s</p>
+                <p>Reset Token: %s</p>
             </body>
             </html>
-            """, emailDto.url(), emailDto.url());
+            """, emailDto.token());
     }
 }
 
